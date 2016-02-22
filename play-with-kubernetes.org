@@ -1,0 +1,127 @@
+#+TITLE: Play with Kunbernetes
+#+AUTHOR: czx
+#+EMAIL: zongxiongchen@163.com
+#+TODO: "should deep in scheduler of kubernetes"
+#+BIND: org-export-publishing-directory "./html"
+#+OPTIONS: email:t author:t \n:t ^:nil creator:nil toc:t todo:t *:t
+#+INFOJS_OPT: view:showall
+
+* Play with kunbernetes
+#+BEGIN_SRC sh :exports both :eval never
+  uname -r
+#+END_SRC
+** Setting up Kubernetes Master
+*** Install etcd and Kubernetes.
+#+BEGIN_SRC sh :export both :eval never
+  yum install -y etcd kubernetes
+#+END_SRC
+*** Configure etcd inside "/etc/etcd/etcd.conf"
+#+BEGIN_EXAMPLE
+  ETCD_NAME=deafult
+  ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+  ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+  ETCD_ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379"
+#+END_EXAMPLE
+*** Configure kubernets api server inside "/etc/kubernetes/apiserver"
+#+BEGIN_EXAMPLE
+  KUBE_API_ADDRESS="--address=0.0.0.0"
+  KUBE_API_PORT="--port=8080"
+  KUBELET_PORT="--kubelet_port=10250"
+  KUBE_ETCD_SERVERS="--etcd_servers=http://127.0.0.1:2379"
+  KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
+  KUBE_ADMISSION_CONTROL="--admission_control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ResourceQuota"
+  KUBE_API_ARGS=""
+#+END_EXAMPLE
+*** Start and enable service "etcd, kube-apiserver, kube-controller-manager and kuber-scheduler"
+*** Define flannel network configuration in etcd
+#+BEGIN_SRC sh :eval never
+  etcdctl mk /atomic.io/network/config '{"Network": "172.17.0.0/16"}'
+#+END_SRC
+*** Get node info
+#+BEGIN_SRC sh :export both :eval never
+  kubectl version
+  kubectl get nodes
+#+END_SRC
+** Setting up Kubernetes Minion
+*** Install Kubernetes and flannel
+#+BEGIN_SRC sh :eval never
+  yum install -y flannel kubernetes
+#+END_SRC
+*** Configure flannel service inside "/etc/sysconfig/flanneld"
+#+BEGIN_EXAMPLE
+  FLANNEL_ETCD="http://10.18.5.79:2379"
+#+END_EXAMPLE
+*** Configure kubernetes inside "/etc/kubernetes/config"
+#+BEGIN_EXAMPLE
+  KUBE_MASTER="--master=http://10.18.5.79:8080"
+#+END_EXAMPLE
+*** Configure kubelet service inside "/etc/kubernetes/kubelet"
+#+BEGIN_EXAMPLE
+  KUBELET_ADDRESS="--address=0.0.0.0"
+  KUBELET_PORT="--port=10250"
+  # change the hostname to this host’s IP address
+  KUBELET_HOSTNAME="--hostname_override=10.18.5.79"
+  KUBELET_API_SERVER="--api_servers=http://10.18.5.79:8080"
+  KUBELET_ARGS=""
+#+END_EXAMPLE
+*** Start and enable service "kube-proxy, kubelet, docker, flanneld"
+*** Check the interface of "flannel0"
+#+BEGIN_SRC sh :exports both :eval never
+  ip a | grep flannel | grep inet
+#+END_SRC
+*** Check the node on master
+#+BEGIN_SRC sh :exports both :eval never
+  kubectl get nodes
+#+END_SRC
+** Create Pod
+*** Create file name "mysql.yaml"
+#+BEGIN_EXAMPLE
+#+INCLUDE: "/root/pods/mysql.yaml"
+#+END_EXAMPLE
+*** Create the Pod
+#+BEGIN_SRC sh :eval never
+  kubectl create -f /root/pods/mysql.yaml
+#+END_SRC
+*** Get the pods
+#+BEGIN_SRC sh :exports both :eval never
+  kubectl get pods
+#+END_SRC
+** Create Service
+*** Create file named "mysql-service.yaml"
+#+BEGIN_EXAMPLE
+#+INCLUDE: "/root/pods/mysql-service.yaml"
+#+END_EXAMPLE
+*** Create the Service
+#+BEGIN_SRC sh :eval never
+  kubectl create -f /root/pods/mysql-service.yaml
+#+END_SRC
+*** Get the Service
+#+BEGIN_SRC sh :export both :eval never
+  kubectl get services
+#+END_SRC
+
+** Problems
+*** Solving the confiction with `docker` and `docker-engine-1.8.3` package
+#+BEGIN_SRC sh :eval never
+  yum remove docker-engine                # remove the docker-engine package to avoid confict
+  yum install -y kubernetes-node          # this package depend on `docker`
+  rpm -e --nodeps docker                  # remove the `docker` without dependencies checking
+  yum install -y docker-engine            # install docker-engine
+#+END_SRC
+*** Why pull from grc.io registry when I create pod?
+**** Debug log:
+    - Sun, 21 Feb 2016 00:18:31 +0800       Sun, 21 Feb 2016 00:45:38 +0800 26      {kubelet 10.18.5.79}    implicitly required container POD       failed          Failed to pull image "gcr.io/google_containers/pause:0.8.0": image pull failed for gcr.io/google_containers/pause:0.8.0, this may be because there are no credentials on this request.  details: (API error (500): unable to ping registry endpoint https://gcr.io/v0/
+    - v2 ping attempt failed with error: Get https://gcr.io/v2/: dial tcp 74.125.203.82:443: i/o timeout
+    - v1 ping attempt failed with error: Get https://gcr.io/v1/_ping: dial tcp 74.125.203.82:443: i/o timeout)
+**** Solution
+#+BEGIN_EXAMPLE
+  kubelet --pod-infra-container-image="docker.io/kubernetes/pause"
+  #+END_EXAMPLE
+or
+#+BEGIN_EXAMPLE
+  docker pull kubernetes/pause
+  docker tag kubernetes/pause gcr.io/google_containers/pause:0.8.0
+#+END_EXAMPLE
+**** Ref
+     - [[https://github.com/kubernetes/kubernetes/issues/7090][Why pull from "gcr.io" registry when I create pod?]]
+     - [[https://github.com/kubernetes/kubernetes/issues/6888][No such image: gcr.io/google_containers/redis]]

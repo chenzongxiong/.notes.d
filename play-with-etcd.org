@@ -1,0 +1,28 @@
+* Play with etcd
+** Get etcd version
+#+NAME: get etcd version
+#+BEGIN_SRC sh :exports both
+  curl -L http://10.18.5.79:2379/version
+#+END_SRC
+** Key Space Operations
+*** Setting the value of a key
+#+BEGIN_SRC sh :exports both
+  curl http://10.18.5.79:2379/v2/keys/hello -XPUT -d value="world" -vv | python -m json.tool
+#+END_SRC
+
+*** Get the value of a key
+#+BEGIN_SRC sh :exports both
+  curl http://10.18.5.79:2379/v2/keys/hello -XGET
+#+END_SRC
+*** Change the value of a key
+#+BEGIN_SRC sh :exports both
+  curl http://10.18.5.79:2379/v2/keys/hello -XPUT -d value="world x" --v | python -m json.tool
+#+END_SRC
+*** Delete the key
+#+BEGIN_SRC sh
+  curl http://10.18.5.79:2379/v2/keys/hello -XDELETE
+#+END_SRC
+*** Using TTL
+#+BEGIN_SRC sh
+  curl http://10.18.5.79:2379/v2/keys/hello -XPUT -d value="world xx" -d ttl=5
+#+END_SRC
