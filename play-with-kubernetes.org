@@ -5,11 +5,12 @@
 #+BIND: org-export-publishing-directory "./html"
 #+OPTIONS: email:t author:t \n:t ^:nil creator:nil toc:t todo:t *:t
 #+INFOJS_OPT: view:showall
-
+#+STARUP: overview
 * Play with kunbernetes
-#+BEGIN_SRC sh :exports both :eval never
+#+BEGIN_SRC sh :exports both :eval query
   uname -r
 #+END_SRC
+
 ** Setting up Kubernetes Master
 *** Install etcd and Kubernetes.
 #+BEGIN_SRC sh :export both :eval never
@@ -100,7 +101,7 @@
   kubectl get services
 #+END_SRC
 
-** Problems
+** Problems I encounter while installing the kubernetnes clusters
 *** Solving the confiction with `docker` and `docker-engine-1.8.3` package
 #+BEGIN_SRC sh :eval never
   yum remove docker-engine                # remove the docker-engine package to avoid confict
@@ -125,3 +126,154 @@ or
 **** Ref
      - [[https://github.com/kubernetes/kubernetes/issues/7090][Why pull from "gcr.io" registry when I create pod?]]
      - [[https://github.com/kubernetes/kubernetes/issues/6888][No such image: gcr.io/google_containers/redis]]
+** Kubernetes architecture
+*** architecture
+**** #+ATTR_HTML: :alt kubernetes/architecture.png images :title architecture :align center
+     [[../images/kubernetes/architecture.png]]
+**** Self healing
+     - auto restarting
+     - re-scheduling
+     - replicating container require active controllers, not just imperative orchestration
+
+*** Kube ctroller node
+    - make global decisions about the cluster(eg., scheduling)
+    - detecting and responding to cluster events
+    (eg., starting up a new pod when a replication controller's replicas field is unsatisfied)
+**** etcd
+     Distrubed Watchable Storage
+     Used as Kubernetes' backing store. All cluster data is stored here
+**** api server
+**** kube-controller-manager
+     background threads that handle routine tasks in the cluster.
+     - node controller
+       - responsible for noticing & responding when nodes go down
+     - replication controller
+       - responsible for maintaining the correct number of pods for every replication controler object in the system
+     - endpoints controller
+       - populates the endpoints object(i.e., join services & pods)
+     - service account & token controllers
+       - create default account and API access tokens for new namespaces.
+     - some others
+**** kube scheduler
+     The scheduler is pluggable. unscheduled pods to nodes via the /binding API
+**** addons
+     - DNS: provides cluster local DNS.
+     - kube-ui
+     - fluentd-elasticsearch: provides log storage.
+     - cluster-monitoring: providing monitoring for the cluster.
+**** Kube controller manager server
+     The replicationcontroller is a mechanism that is layered on top of the simple pod API.
+     We eventually plan to port it to a generic plug-in mechanism, once one is implemented.
+**** Accessing the API from a Pod
+     By kube-system, a pod is associated with a service account, and a credential(token) for that service account is placed into
+     filesystem tree of each container in pod, at /var/run/secrets/kubernetes.io/serviceaccount/token.
+**** Accessing services running on the cluster
+     - access services through public IPs
+       - use a service with type 'NodePort' or 'LoadBalancer'. ref: kubectl expose
+     - access services, nodes, or pods using the Proxy Verb
+     - access from a node or pod in the cluster
+**** Proxies
+     - kube proxy
+       - proxies UDP and TCP
+       - not understand HTTP
+       - load balancing
+       - is just used to reach services
+     - apiserver proxy
+       - connects a user outside of the cluster to cluster IPs which otherwise might not be reachable
+       - client to proxy uses HTTPS(or http if configured)
+       - can e used to reach sa Node, Pod or Service
+       - does load balancing when used to reach a Service
+     - kubectl proxy
+       - run in a pod
+       - client to proxy uses HTTP
+       - proxy to apiserver uses HTTPS
+       - locates apiserver
+       - adds authentication headers
+
+*** Kube slave Node
+    - node status
+    - node address
+      - hostname
+      - external ip
+      - internal ip
+    - node phase
+      - pending
+      - running
+        - Running phase is neccessary but not sufficent requirement for scheduling Pods.
+      - terminated
+    - node condition
+    - node capacity
+      - CPUs
+      - memory
+      - maximum number of pods that can be scheduld onto the node
+    - node info, gather by 'kubelet' from the node
+      - kubernets version (kublete version, kube-proxy version)
+      - docker version
+      - OS name
+    - networking in kubernetes
+      - differently than Docker does by deafult.
+        + Highly-coupled container-to-container communications: this is solved by pods and localhost communications
+        + Pod-to-Pod communications
+        + Pod-to-Service communications
+        + External-to-Service communications
+      - impose the following fundamental requirements
+        + all containers can communicate with all other containers without NAT
+        + all nodes can communicate with all containers (and vice-versa) without NAT
+        + the IP that a container sees itself as is the same IP that other see it as
+      - [[http://kubernetes.io/v1.1/docs/design/networking.html][how to achives this?]]
+        + OpenVSwitch
+          - gre
+          - VxLAN
+        + Flannel
+        + Weave
+        + Calico
+
+**** kubelet
+    The kubelet manages pods and their containers, their images, their volumes, etc.
+**** kube-proxy
+    - a simple network proxy
+    - loda blancer
+*** Which Network Support?
+**** Vlan X
+
+
+** Compare Kunbernetes with Mesos
+| Name       | Scheduler | Scalability |   |   |
+|------------+-----------+-------------+---+---|
+| Kubernetes |           |             |   |   |
+
+** Analysis Tools
+*** Kubemark
+    - [[https://github.com/kubernetes/kubernetes/blob/2b2f2857771c748f0f0e261f3b8e2ad1627325ce/docs/proposals/kubemark.md][kubemark]]
+*** Plot
+    - [[https://github.com/coreos/kscale/blob/dfe65f050cff5bebf83074e3b3e6b3c2d69a9222/logplot/main.go][plot-tool]]
+*** Metrics
+    Kubernetes components provide metrics for most end-to-end API calls.
+    - [[https://prometheus.io/][Prometheus]]
+*** remove the rate limiter `CreatePod`
+    - [[https://github.com/kubernetes/kubernetes/pull/17885][ client request metrics should be registered only once #17885 ]]
+*** problem of scheduler
+    - [[https://github.com/kubernetes/kubernetes/issues/18091][Scheduler Performance Testing Proposal #18091]]
+    - [[https://docs.google.com/presentation/d/1HYGDFTWyKjJveAk_t10L6uxoZOWTiRVLLCZj5Zxw5ok/edit?pref=2&pli=1#slide=id.p][Scheduler Performance Test]]
+    - [[https://github.com/kubernetes/kubernetes/pull/18458][scheduler performance test pull request #17885]]
+    - [[https://github.com/kubernetes/kubernetes/issues/18126][scheduler: using inefficient math library causes significant slowdown #18126]]
+    - [[https://github.com/kubernetes/kubernetes/pull/18458][Scheduler Performance Testing #18458]]
+    - [[https://github.com/kubernetes/kubernetes/issues/18418][Tracking issue for issues related to scheduler performance/scalability #18418]]
+    - [[https://github.com/kubernetes/kubernetes/wiki/SIG-Scalability][Scalability SIG]]
+
+*** New profiling result for schedule 1000 pods over 1000 nodes
+    - [[https://storage.googleapis.com/profiling/fix.svg][fix]]
+    - [[https://storage.googleapis.com/profiling/org.svg][org]]
+*** Kunbernetes can support hundreds of machines, the open source version of `Borg
+*** refs:
+    - [[https://news.ycombinator.com/item?id=9653865][kubernetes makes for an amazing an developer story]]
+** Useful command
+*** kubectl
+#+BEGIN_SRC sh :export code :eval never
+  kubectl config view             # check the location and credentials that kubectl knows about.
+  kubectl get nodes
+  kubectl get services
+  kubectl get pods
+  kubectl get pod <name>
+  kubectl describe pod <name>
+#+END_SRC
