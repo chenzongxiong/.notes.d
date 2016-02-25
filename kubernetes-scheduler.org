@@ -1,0 +1,78 @@
+* Kubernetes Schedule
+  The scheduler is not just an admission controller; for each pod that is
+  created, it finds the "best" machine for that pod, and if no machine is
+  suitable, the pod remains unscheduled until a machine becomes suitable.
+**  The scheduler is configurable. It has two types of policies,
+*** FitPredicate (see master/pkg/scheduler/predicates.go)
+    - the sum of requested resources
+      #+BEGIN_EXAMPLE :export no
+          Fit predicates are required rules, for example the labels on the node must
+        be compatible with the label selector on the pod (this rule is implemented in
+        PodSelectorMatches() in predicates.go), and the sum of the requested resources
+        of the container(s) already running on the machine plus the requested
+        resources of the new container(s) you are considering scheduling onto the
+        machine must not be greater than the capacity of the machine (this rule is
+        implemented in PodFitsResources() in predicates.go; note that "requested
+        resources" is defined as pod.Spec.Containers[n].Resources.Limits, and if you
+        request zero resources then you always fit). If any of the required rules are
+        not satisfied for a particular (new pod, machine) pair, then the new pod is
+        not scheduled on that machine. If after checking all machines the scheduler
+        decides that the new pod cannot be scheduled onto any machine, then the pod
+        remains in Pending state until it can be satisfied by one of the machines.
+      #+END_EXAMPLE
+*** PriorityFunction (see master/pkg/scheduler/priorities.go)
+    if multiple machines meets the requested resource, then choose the best one.
+    can make the pods spread over machines
+    #+BEGIN_EXAMPLE :export no
+        After checking all of the machines with respect to the fit predicates, the
+      scheduler may find that multiple machines "fit" the pod. But of course the pod
+      can only be scheduled onto one machine. That's where priority functions come
+      in. Basically the scheduler ranks the machines that meet all of the fit
+      predicates, and then chooses the best one. For example, it prefers the machine
+      whose already-running pods consume the least resources (this is implemented in
+      LeastRequestedPriority() in priorities.go). This policy spreads pods (and thus
+      containers) out instead of packing lots onto one machine while leaving others
+      empty.
+    #+END_EXAMPLE
+    The Kubernetes pod scheduler is responsible for determining placement of new
+    pods onto nodes within the cluster. It reads data from the pod and tries to
+    find a node that is a good fit based on configured policies. It is completely
+    independent and exists as a standalone/pluggable solution. It does not modify
+    the pod and just creates a binding for the pod that ties the pod to the
+    particular node.
+
+** The scheduling process
+  The scheduler tries to find a node for each Pod, one at a time, as it notices
+  these Pods via watch. There are three steps.
+  First it applies a set of "predicates" that filter out inappropriate
+  nodes. For example, if the PodSpec specifies resource requests, then the
+  scheduler will filter out nodes that don't have at least that much resources
+  available (computed as the capacity of the node minus the sum of the resource
+  requests of the containers that are already running on the node).
+  Second, it applies a set of "priority functions" that rank the nodes that
+  weren't filtered out by the predicate check. For example, it tries to spread
+  Pods across nodes while at the same time favoring the least-loaded nodes
+  (where "load" here is sum of the resource requests of the containers running
+  on the node, divided by the node's capacity).
+  Finally, the node with the highest priority is chosen (or, if there are
+  multiple such nodes, then one of them is chosen at random). The code for this
+  main scheduling loop is in the functionSchedule() in
+  plugin/pkg/scheduler/generic_scheduler.go
+
+** distributed systems orchestration
+   #+BEGIN_EXAMPLE
+     Mesos cluster manger has two drawbacks:
+     1. for mesos, the application-level scheduler can only see the
+        information of the resource manager says. it cannot see other
+        releavant information for its decision.
+        information hiding: priority preemption
+        for example, if the high priority task wants to 'kick out' the
+        lower task, but the application-level scheduler will never see it.
+     2. hoarding: especially affects "gang-scheduled" job
+   #+END_EXAMPLE
+** ref
+  [[http://stackoverflow.com/questions/28857993/how-does-kubernetes-scheduler-work][how-does-kubernetes-scheduler-work]]
+  https://coreos.com/blog/improving-kubernetes-scheduler-performance.html
+  https://kismatic.com/company/qa-with-malte-schwarzkopf-on-distributed-systems-orchestration-in-the-modern-data-center/
+  https://docs.openshift.org/latest/admin_guide/scheduler.html
+  http://kubernetes.io/v1.1/docs/devel/scheduler.html

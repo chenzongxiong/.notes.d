@@ -134,7 +134,7 @@ or
      - [[https://github.com/kubernetes/kubernetes/issues/6888][No such image: gcr.io/google_containers/redis]]
 ** Kubernetes architecture
 *** Architecture
-**** #+ATTR_HTML: :alt kubernetes/architecture.png images :title architecture :align center
+    #+ATTR_HTML: :alt kubernetes/architecture.png images :title architecture :align center
      [[../images/kubernetes/architecture.png]]
 **** Self healing
      - auto restarting
@@ -206,7 +206,7 @@ or
 **** Names(create by client), Identifiers, UIDs(generate by kubernetes)
 **** Jobs(not supported in v1)
      a job creates one or more pods and ensures that a specified number of them successfully terminate.
-*** Kube ctroller node
+*** Kube controller node
     - make global decisions about the cluster(eg., scheduling)
     - detecting and responding to cluster events
     (eg., starting up a new pod when a replication controller's replicas field is unsatisfied)
@@ -327,11 +327,6 @@ or
       + ref:
         + http://kubernetes.io/v1.1/docs/admin/networking.html
         + http://blog.oddbit.com/2014/08/11/four-ways-to-connect-a-docker/
-** Compare Kunbernetes with Mesos
-| Name       | Scheduler | Scalability |   |   |
-|------------+-----------+-------------+---+---|
-| Kubernetes |           |             |   |   |
-
 ** Analysis Tools
 *** Kubemark
     - [[https://github.com/kubernetes/kubernetes/blob/2b2f2857771c748f0f0e261f3b8e2ad1627325ce/docs/proposals/kubemark.md][kubemark]]
