@@ -7,23 +7,23 @@
 #+INFOJS_OPT: view:showall
 #+STARUP: overview
 * Play with kunbernetes
-#+BEGIN_SRC sh :exports both :eval query
+  #+BEGIN_SRC sh :exports both :eval query
   uname -r
-#+END_SRC
-
-** Setting up Kubernetes Master
-*** Install etcd and Kubernetes.
+  #+END_SRC
+** Setting up Kubernetes
+*** Setting up Kubernetes Master
+**** Install etcd and Kubernetes.
 #+BEGIN_SRC sh :export both :eval never
   yum install -y etcd kubernetes
 #+END_SRC
-*** Configure etcd inside "/etc/etcd/etcd.conf"
+**** Configure etcd inside "/etc/etcd/etcd.conf"
 #+BEGIN_EXAMPLE
   ETCD_NAME=deafult
   ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
   ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
   ETCD_ETCD_ADVERTISE_CLIENT_URLS="http://localhost:2379"
 #+END_EXAMPLE
-*** Configure kubernets api server inside "/etc/kubernetes/apiserver"
+**** Configure kubernets api server inside "/etc/kubernetes/apiserver"
 #+BEGIN_EXAMPLE
   KUBE_API_ADDRESS="--address=0.0.0.0"
   KUBE_API_PORT="--port=8080"
@@ -33,30 +33,30 @@
   KUBE_ADMISSION_CONTROL="--admission_control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ResourceQuota"
   KUBE_API_ARGS=""
 #+END_EXAMPLE
-*** Start and enable service "etcd, kube-apiserver, kube-controller-manager and kuber-scheduler"
-*** Define flannel network configuration in etcd
+**** Start and enable service "etcd, kube-apiserver, kube-controller-manager and kuber-scheduler"
+**** Define flannel network configuration in etcd
 #+BEGIN_SRC sh :eval never
   etcdctl mk /atomic.io/network/config '{"Network": "172.17.0.0/16"}'
 #+END_SRC
-*** Get node info
+**** Get node info
 #+BEGIN_SRC sh :export both :eval never
   kubectl version
   kubectl get nodes
 #+END_SRC
-** Setting up Kubernetes Minion
-*** Install Kubernetes and flannel
+*** Setting up Kubernetes Minion
+**** Install Kubernetes and flannel
 #+BEGIN_SRC sh :eval never
   yum install -y flannel kubernetes
 #+END_SRC
-*** Configure flannel service inside "/etc/sysconfig/flanneld"
-#+BEGIN_EXAMPLE
-  FLANNEL_ETCD="http://10.18.5.79:2379"
-#+END_EXAMPLE
-*** Configure kubernetes inside "/etc/kubernetes/config"
+**** Configure flannel service inside "/etc/sysconfig/flanneld"
+    #+BEGIN_EXAMPLE
+    FLANNEL_ETCD="http://10.18.5.79:2379"
+    #+END_EXAMPLE
+**** Configure kubernetes inside "/etc/kubernetes/config"
 #+BEGIN_EXAMPLE
   KUBE_MASTER="--master=http://10.18.5.79:8080"
 #+END_EXAMPLE
-*** Configure kubelet service inside "/etc/kubernetes/kubelet"
+**** Configure kubelet service inside "/etc/kubernetes/kubelet"
 #+BEGIN_EXAMPLE
   KUBELET_ADDRESS="--address=0.0.0.0"
   KUBELET_PORT="--port=10250"
@@ -65,44 +65,43 @@
   KUBELET_API_SERVER="--api_servers=http://10.18.5.79:8080"
   KUBELET_ARGS=""
 #+END_EXAMPLE
-*** Start and enable service "kube-proxy, kubelet, docker, flanneld"
-*** Check the interface of "flannel0"
+**** Start and enable service "kube-proxy, kubelet, docker, flanneld"
+**** Check the interface of "flannel0"
 #+BEGIN_SRC sh :exports both :eval never
   ip a | grep flannel | grep inet
 #+END_SRC
-*** Check the node on master
-#+BEGIN_SRC sh :exports both :eval never
+**** Check the node on master
+    #+BEGIN_SRC sh :exports both :eval never
   kubectl get nodes
-#+END_SRC
-** Create Pod
-*** Create file name "mysql.yaml"
-#+BEGIN_EXAMPLE
-#+INCLUDE: "/root/pods/mysql.yaml"
-#+END_EXAMPLE
-*** Create the Pod
+    #+END_SRC
+**** Create Pod
+**** Create file name "mysql.yaml"
+    #+BEGIN_EXAMPLE
+    #+INCLUDE: "/root/pods/mysql.yaml"
+    #+END_EXAMPLE
+**** Create the Pod
 #+BEGIN_SRC sh :eval never
   kubectl create -f /root/pods/mysql.yaml
 #+END_SRC
-*** Get the pods
+**** Get the pods
 #+BEGIN_SRC sh :exports both :eval never
   kubectl get pods
 #+END_SRC
-** Create Service
-*** Create file named "mysql-service.yaml"
+**** Create Service
+**** Create file named "mysql-service.yaml"
 #+BEGIN_EXAMPLE
 #+INCLUDE: "/root/pods/mysql-service.yaml"
 #+END_EXAMPLE
-*** Create the Service
+**** Create the Service
 #+BEGIN_SRC sh :eval never
   kubectl create -f /root/pods/mysql-service.yaml
 #+END_SRC
-*** Get the Service
+**** Get the Service
 #+BEGIN_SRC sh :export both :eval never
   kubectl get services
 #+END_SRC
-
-** Problems I encounter while installing the kubernetnes clusters
-*** Solving the confiction with `docker` and `docker-engine-1.8.3` package
+**** Problems I encounter while installing the kubernetnes clusters
+**** Solving the confiction with `docker` and `docker-engine-1.8.3` package
 #+BEGIN_SRC sh :eval never
   yum remove docker-engine                # remove the docker-engine package to avoid confict
   yum install -y kubernetes-node          # this package depend on `docker`
@@ -114,7 +113,7 @@
     - Sun, 21 Feb 2016 00:18:31 +0800       Sun, 21 Feb 2016 00:45:38 +0800 26      {kubelet 10.18.5.79}    implicitly required container POD       failed          Failed to pull image "gcr.io/google_containers/pause:0.8.0": image pull failed for gcr.io/google_containers/pause:0.8.0, this may be because there are no credentials on this request.  details: (API error (500): unable to ping registry endpoint https://gcr.io/v0/
     - v2 ping attempt failed with error: Get https://gcr.io/v2/: dial tcp 74.125.203.82:443: i/o timeout
     - v1 ping attempt failed with error: Get https://gcr.io/v1/_ping: dial tcp 74.125.203.82:443: i/o timeout)
-**** Solution
+**** Solution 1
 #+BEGIN_EXAMPLE
   kubelet --pod-infra-container-image="docker.io/kubernetes/pause"
   #+END_EXAMPLE
@@ -123,18 +122,30 @@ or
   docker pull kubernetes/pause
   docker tag kubernetes/pause gcr.io/google_containers/pause:0.8.0
 #+END_EXAMPLE
+**** Solution 2
+     add the /etc/default/docker on ubuntu or /etc/sysconfig/docker on centos
+     #+BEGIN_EXAMPLE
+            export http_proxy=http://hostname:port
+            export https_proxy=http://hostname:port
+     #+END_EXAMPLE
+     then restart the docker daemon service
 **** Ref
      - [[https://github.com/kubernetes/kubernetes/issues/7090][Why pull from "gcr.io" registry when I create pod?]]
      - [[https://github.com/kubernetes/kubernetes/issues/6888][No such image: gcr.io/google_containers/redis]]
 ** Kubernetes architecture
-*** architecture
+*** Architecture
 **** #+ATTR_HTML: :alt kubernetes/architecture.png images :title architecture :align center
      [[../images/kubernetes/architecture.png]]
 **** Self healing
      - auto restarting
      - re-scheduling
      - replicating container require active controllers, not just imperative orchestration
-
+*** Basic Concept
+    - Pods: groups of containers, share the resource(volumes, cpus, rams, etc.)
+      + each Pod has its own IP that other pods can know
+      +
+    - Labels:
+    -
 *** Kube ctroller node
     - make global decisions about the cluster(eg., scheduling)
     - detecting and responding to cluster events
@@ -210,33 +221,41 @@ or
       - kubernets version (kublete version, kube-proxy version)
       - docker version
       - OS name
-    - networking in kubernetes
-      - differently than Docker does by deafult.
-        + Highly-coupled container-to-container communications: this is solved by pods and localhost communications
-        + Pod-to-Pod communications
-        + Pod-to-Service communications
-        + External-to-Service communications
-      - impose the following fundamental requirements
-        + all containers can communicate with all other containers without NAT
-        + all nodes can communicate with all containers (and vice-versa) without NAT
-        + the IP that a container sees itself as is the same IP that other see it as
-      - [[http://kubernetes.io/v1.1/docs/design/networking.html][how to achives this?]]
+**** kubelet
+    The kubelet manages pods and their containers, their images, their volumes, etc.
+**** kube-proxy
+    - a simple network proxy
+    - load blancer
+**** Network in Kubernetes
+    - differently than Docker does by deafult.
+      + Highly-coupled container-to-container communications: this is solved by pods and localhost communications
+      + Pod-to-Pod communications
+      + Pod-to-Service communications
+      + External-to-Service communications
+    - impose the following fundamental requirements
+    #+BEGIN_EXAMPLE
+      Dynamic port allocation brings a lot of complications to the system - every application has to take ports as flags,
+      the API servers have to know how to insert dynamic port numbers into configuration blocks, services have to know how to find each other, etc.
+    #+END_EXAMPLE
+      + all containers can communicate with all other containers without NAT
+      + all nodes can communicate with all containers (and vice-versa) without NAT
+      + the IP that a container sees itself as is the same IP that other see it as
+    #+BEGIN_EXAMPLE
+      for Kubernetes to enable low-friction porting of apps from VMs to containers.
+    #+END_EXAMPLE
+      + Pods more like VM or physical host from the perspectives of port allocation
+      +
+
+    - [[http://kubernetes.io/v1.1/docs/design/networking.html][how to achives this?]]
         + OpenVSwitch
           - gre
           - VxLAN
         + Flannel
         + Weave
         + Calico
-
-**** kubelet
-    The kubelet manages pods and their containers, their images, their volumes, etc.
-**** kube-proxy
-    - a simple network proxy
-    - loda blancer
-*** Which Network Support?
-**** Vlan X
-
-
+      + ref:
+        + http://kubernetes.io/v1.1/docs/admin/networking.html
+        + http://blog.oddbit.com/2014/08/11/four-ways-to-connect-a-docker/
 ** Compare Kunbernetes with Mesos
 | Name       | Scheduler | Scalability |   |   |
 |------------+-----------+-------------+---+---|
