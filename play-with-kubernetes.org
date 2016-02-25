@@ -141,11 +141,71 @@ or
      - re-scheduling
      - replicating container require active controllers, not just imperative orchestration
 *** Basic Concept
-    - Pods: groups of containers, share the resource(volumes, cpus, rams, etc.)
-      + each Pod has its own IP that other pods can know
-      +
-    - Labels:
-    -
+**** Pods: groups of containers, share the resource(volumes, cpus, rams, etc.)
+      + network namespace (applications within the pod have access to the same IP and port space)
+      + PID namespace (applications within the pod can see each other's processes)
+      + IPC namespace (applications within the pod can use SystemV IPC or POSIX message queues to communicate)
+      + UTS namespace (applications within the pod share a hostname)
+     #+BEGIN_EXAMPLE
+     pod nerver reschedule to a new nodes, they must be replace(replication controller)
+     #+END_EXAMPLE
+     - Phase
+       + Pending
+       + Running
+       + Succeeded
+       + Failed
+       + Unknown
+     - Status
+       + True: container pass
+       + False: container failed
+       + Unknown: not receive response from apiserver
+     - RestartPolicy
+       + Alway
+       + OnFailure
+       + Never
+     - Why not just run multiple programs in a single(Docker) container?
+       + Transparency.
+       + Decoupling software dependencies
+       + Ease of use
+       + Efficiency
+**** Label && Selectors
+     #+BEGIN_EXAMPLE
+     key/value pairs that attached to objects, such as pod.
+     Labels are intended to be used to specify identifying attributes of objects that are meaningful
+     and relevant to users, but which don't directly imply semantics to the core system.
+     do not provide uniqueness.
+     #+END_EXAMPLE
+**** Replication Controller
+     #+BEGIN_EXAMPLE
+     ensures that a specified number of pod "replicas"are running at any one time.
+     only appropriate for pods with RestartPolicy = Always
+     #+END_EXAMPLE
+     - once pod is created, there is no relationship between pods and templates(define in yaml or json)
+     - no scheduling policies in replication controller
+     - it itself not perform readiness nor liveness probes
+     - currently, only terminated pods are excluded from its count. (PENDING, RUNNING are included)
+***** re-scheduling
+***** scaling
+***** rolling updates
+      updates to a service by replacing pods one-by-one
+**** Services
+     pods are mortal. they are born and they die. so the IP not stable over time.
+     an abstraction which defines a logical set of Pods and a policy by which to access them
+     #+BEGIN_EXAMPLE
+     solve the comminucation between two pods.
+     decompling the fronted(pod 1) and backend(pod 2)
+     #+END_EXAMPLE
+     the service will be assigned an IP address (cluster IP), tied to the lifespan of the Service.
+     service can be used without selectors
+     services are a "layer 3"(TCP or UDP over ip) not "layer 7" (HTTP)
+
+**** Namespaces
+     supports multiple virtual clusters backed by the same physical cluster. These virtual clusters are called namespaces.
+**** Volumes(liftime along with pod, not container)
+**** Annotations
+**** Names(create by client), Identifiers, UIDs(generate by kubernetes)
+**** Jobs(not supported in v1)
+     a job creates one or more pods and ensures that a specified number of them successfully terminate.
 *** Kube ctroller node
     - make global decisions about the cluster(eg., scheduling)
     - detecting and responding to cluster events
@@ -167,6 +227,17 @@ or
      - some others
 **** kube scheduler
      The scheduler is pluggable. unscheduled pods to nodes via the /binding API
+***** How Pods with Resource Requests are scheduled
+      #+BEGIN_EXAMPLE
+              When a pod is created, the Kubernetes scheduler selects a node for the pod to run on.
+      Each node has a maximum capacity for each of the resource types: the amount of CPU and memory it can provide for pods.
+      The scheduler ensures that, for each resource type (CPU and memory), the sum of the resource requests of the containers
+      scheduled to the node is less than the capacity of the node. Note that although actual memory or CPU resource usage on
+      nodes is very low, the scheduler will still refuse to place pods onto nodes if the capacity check fails. This protects
+      against a resource shortage on a node when resource usage later increases, such as due to a daily peak in request rate.
+      #+END_EXAMPLE
+      If a container exceeds its memory limit, it may be terminated.
+      A container may or may not be allowed to exceed its CPU limit for extended periods of time. However, it will not be killed for excessive CPU usage.
 **** addons
      - DNS: provides cluster local DNS.
      - kube-ui
@@ -293,6 +364,30 @@ or
   kubectl get nodes
   kubectl get services
   kubectl get pods
-  kubectl get pod <name>
-  kubectl describe pod <name>
+  kubectl get rc or kubectl get replicationcontrollers
+  kubectl get pod <pod-name>
+  kubectl get service <service-name>
+  kubectl get rc <replcation-controller-name>
+  kubectl describe pod <pod-name>
+  kubectl describe service <service-name>
+  kubectl get pods -l 'filtering' # equality-bsaed requirement  or set-base requirement
+  kubectl delete rc my-nginx      # rc: replication controller
+  kubectl delete svc my-nginx     # svc: service
+  kubectl logs <pod-name>
+  kubectl get ep or kubectl get endpoints
+#+END_SRC
+
+#+NAME: Launching a simpe application
+#+BEGIN_EXAMPLE
+  kubectl run my-nginx --image=nginx --replicas=2 --port=80
+  kubectl get pods
+#+END_EXAMPLE
+#+NAME: Exposing your application to the Internet
+#+BEGIN_EXAMPLE
+  kubectl expose rc my-nginx --port=80 --type=LoadBalancer
+#+END_EXAMPLE
+*** etcdctl
+#+BEGIN_SRC sh
+  etcdctl ls <dir>
+  etcdctl get <key>
 #+END_SRC
