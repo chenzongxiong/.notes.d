@@ -1,0 +1,12 @@
+#+BIND: org-export-publishing-directory "./html"
+#+OPTIONS: email:t author:t \n:t ^:nil creator:nil toc:t todo:t *:t
+#+INFOJS_OPT: view:showall
+* kubernetes networking
+  #+ATTR_HTML: :alt kubernetes/services-overview.png images :title services-overview :align center
+  [[../images/kubernetes/services-overview.png]]
+
+  #+ATTR_HTML: :alt kubernetes/ovs-networking.png images :title ovs-networking :align center
+  [[../images/kubernetes/ovs-networking.png]]
+
+** ref
+   - http://kubernetes.io/v1.1/docs/admin/ovs-networking.html

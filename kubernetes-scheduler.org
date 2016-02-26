@@ -1,3 +1,6 @@
+#+BIND: org-export-publishing-directory "./html"
+#+OPTIONS: email:t author:t \n:t ^:nil creator:nil toc:t todo:t *:t
+#+INFOJS_OPT: view:showall
 * Kubernetes Schedule
   The scheduler is not just an admission controller; for each pod that is
   created, it finds the "best" machine for that pod, and if no machine is
@@ -70,6 +73,47 @@
         lower task, but the application-level scheduler will never see it.
      2. hoarding: especially affects "gang-scheduled" job
    #+END_EXAMPLE
+** scheduler-policy-config
+   #+BEGIN_EXAMPLE
+     {
+          "kind" : "Policy",
+          "apiVersion" : "v1",
+          "predicates" : [
+                       {"name" : "PodFitsPorts"},
+                       {"name" : "PodFitsResources"},
+                       {"name" : "NoDiskConflict"},
+                       {"name" : "MatchNodeSelector"},
+                       {"name" : "HostName"}
+                       ],
+          "priorities" : [
+                       {"name" : "LeastRequestedPriority", "weight" : 1},
+                       {"name" : "BalancedResourceAllocation", "weight" : 1},
+                       {"name" : "ServiceSpreadingPriority", "weight" : 1},
+                       {"name" : "EqualPriority", "weight" : 1}
+                       ]
+     }
+   #+END_EXAMPLE
+*** Static Predicates
+   - PodFitsPorts: deems a node to be fit for hosting a pod based on the absence
+     of port conflicts.
+   - PodFitsResources: determines a fit based on resource availability. The nodes
+     can declare their resource capacities and then pods can specify what
+     resources they require. Fit is based on requested, rather than used
+     resources.
+   - NoDiskConflict: determines fit based on non-conflicting disk volumes. It
+     evaluates if a pod can fit due to the volumes it requests, and those that
+     are already mounted. It is GCE and Amazon EBS specific.
+   - MatchNodeSelector: determines fit based on node selector query that is defined in the pod.
+   - HostName: determines fit based on the presence of the Host parameter and a
+     string match with the name of the host.
+*** Static Priority Functions
+    - LeastRequestedPriority: favors nodes with fewer requested resources.
+    - BalancedResourceAllocation: favors nodes with balanced resource usage
+      rate.
+    - ServiceSpreadingPriority: spreads pods by minimizing the number of pods
+      belonging to the same service onto the same machine.
+    - EqualPriority gives an equal weight of one to all nodes, if no priority
+      configs are provided. It is not required/recommended outside of testing.
 ** ref
   [[http://stackoverflow.com/questions/28857993/how-does-kubernetes-scheduler-work][how-does-kubernetes-scheduler-work]]
   https://coreos.com/blog/improving-kubernetes-scheduler-performance.html

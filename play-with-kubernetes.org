@@ -1,7 +1,6 @@
 #+TITLE: Play with Kunbernetes
 #+AUTHOR: czx
 #+EMAIL: zongxiongchen@163.com
-#+TODO: "should deep in scheduler of kubernetes"
 #+BIND: org-export-publishing-directory "./html"
 #+OPTIONS: email:t author:t \n:t ^:nil creator:nil toc:t todo:t *:t
 #+INFOJS_OPT: view:showall
